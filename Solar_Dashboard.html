@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Solar Energy Production Zones — Spinnaker Analytics</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --navy:    #0D1B2A;
+    --navy2:   #1a2d42;
+    --teal:    #0D9488;
+    --teal2:   #14b8a6;
+    --gold:    #F59E0B;
+    --white:   #FFFFFF;
+    --off:     #F0F4F8;
+    --light:   #e2e8f0;
+    --muted:   #64748b;
+    --dark:    #1e293b;
+    --zA: #e74c3c;
+    --zB: #3498db;
+    --zC: #f39c12;
+    --zD: #95a5a6;
+    --card-bg: #ffffff;
+    --sidebar: #0D1B2A;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'DM Sans',sans-serif; background:var(--off); color:var(--dark); display:flex; min-height:100vh; }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 220px; min-height:100vh; background:var(--navy);
+    display:flex; flex-direction:column; padding:0; position:fixed; left:0; top:0; z-index:100;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+  }
+  .sidebar-logo {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .sidebar-logo .logo-tag {
+    font-size:10px; letter-spacing:3px; color:var(--teal2); text-transform:uppercase; font-weight:600; margin-bottom:6px;
+  }
+  .sidebar-logo h2 { font-size:15px; color:var(--white); font-weight:700; line-height:1.3; }
+  .sidebar-logo .org { font-size:11px; color:rgba(255,255,255,0.4); margin-top:4px; }
+  .sidebar-nav { padding:16px 0; flex:1; }
+  .nav-section { padding: 8px 20px 4px; font-size:9px; letter-spacing:2px; color:rgba(255,255,255,0.3); text-transform:uppercase; font-weight:600; }
+  .nav-item {
+    display:flex; align-items:center; gap:10px; padding:10px 20px;
+    color:rgba(255,255,255,0.55); font-size:13px; font-weight:500; cursor:pointer;
+    transition:all 0.2s; border-left:3px solid transparent;
+  }
+  .nav-item:hover { background:rgba(255,255,255,0.05); color:var(--white); }
+  .nav-item.active { color:var(--white); background:rgba(13,148,136,0.15); border-left-color:var(--teal); }
+  .nav-item .dot { width:7px; height:7px; border-radius:50%; background:currentColor; opacity:0.6; flex-shrink:0; }
+  .sidebar-bottom { padding:16px 20px; border-top:1px solid rgba(255,255,255,0.08); }
+  .author-tag { font-size:11px; color:rgba(255,255,255,0.35); line-height:1.6; }
+  .author-tag strong { color:rgba(255,255,255,0.7); display:block; }
+
+  /* MAIN CONTENT */
+  .main { margin-left:220px; flex:1; display:flex; flex-direction:column; min-height:100vh; }
+
+  /* TOP BAR */
+  .topbar {
+    height:58px; background:var(--white); border-bottom:1px solid var(--light);
+    display:flex; align-items:center; justify-content:space-between; padding:0 28px;
+    position:sticky; top:0; z-index:90; box-shadow:0 1px 8px rgba(0,0,0,0.06);
+  }
+  .topbar-title { font-size:16px; font-weight:700; color:var(--navy); }
+  .topbar-title span { color:var(--teal); }
+  .topbar-right { display:flex; align-items:center; gap:14px; }
+  .badge-date { font-size:11px; color:var(--muted); background:var(--off); padding:4px 12px; border-radius:20px; border:1px solid var(--light); font-family:'DM Mono',monospace; }
+  .filter-bar {
+    background:var(--white); border-bottom:1px solid var(--light);
+    padding:10px 28px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  }
+  .filter-label { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+  .filter-btn {
+    padding:5px 14px; border-radius:20px; border:1.5px solid var(--light);
+    font-size:12px; font-weight:600; cursor:pointer; background:var(--white); color:var(--muted);
+    transition:all 0.18s; font-family:'DM Sans',sans-serif;
+  }
+  .filter-btn:hover { border-color:var(--teal); color:var(--teal); }
+  .filter-btn.active { background:var(--teal); color:var(--white); border-color:var(--teal); }
+  .filter-btn.zA.active { background:var(--zA); border-color:var(--zA); color:#fff; }
+  .filter-btn.zB.active { background:var(--zB); border-color:var(--zB); color:#fff; }
+  .filter-btn.zC.active { background:var(--zC); border-color:var(--zC); color:#fff; }
+  .filter-btn.zD.active { background:var(--zD); border-color:var(--zD); color:#fff; }
+
+  /* CONTENT AREA */
+  .content { padding:24px 28px; flex:1; }
+
+  /* KPI CARDS */
+  .kpi-row { display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:22px; }
+  .kpi-card {
+    background:var(--white); border-radius:12px; padding:18px 16px 14px;
+    box-shadow:0 1px 4px rgba(0,0,0,0.06); border:1px solid var(--light);
+    position:relative; overflow:hidden; transition:transform 0.2s, box-shadow 0.2s;
+  }
+  .kpi-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.1); }
+  .kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--teal); }
+  .kpi-card.gold::before { background:var(--gold); }
+  .kpi-card.red::before { background:var(--zA); }
+  .kpi-card.blue::before { background:var(--zB); }
+  .kpi-icon { font-size:20px; margin-bottom:8px; }
+  .kpi-val { font-size:22px; font-weight:800; color:var(--navy); letter-spacing:-0.5px; }
+  .kpi-label { font-size:11px; color:var(--muted); margin-top:3px; font-weight:500; }
+  .kpi-sub { font-size:10px; color:var(--teal); margin-top:4px; font-weight:600; }
+
+  /* CHART GRID */
+  .chart-grid { display:grid; gap:18px; }
+  .row-3 { grid-template-columns:2fr 1fr 1fr; }
+  .row-2 { grid-template-columns:1.4fr 1fr; }
+  .row-2b { grid-template-columns:1fr 1.6fr; }
+  .row-1 { grid-template-columns:1fr; }
+
+  .chart-card {
+    background:var(--white); border-radius:14px; padding:20px;
+    box-shadow:0 1px 4px rgba(0,0,0,0.06); border:1px solid var(--light);
+    display:flex; flex-direction:column;
+  }
+  .chart-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; }
+  .chart-title { font-size:13px; font-weight:700; color:var(--navy); }
+  .chart-sub { font-size:11px; color:var(--muted); margin-top:2px; }
+  .chart-badge { font-size:10px; font-weight:700; padding:3px 10px; border-radius:20px; background:var(--off); color:var(--muted); }
+  .chart-body { flex:1; position:relative; min-height:0; }
+  canvas { max-width:100%; }
+
+  /* ZONE CARDS */
+  .zone-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
+  .zone-card {
+    border-radius:12px; padding:16px; color:#fff; position:relative; overflow:hidden;
+    cursor:pointer; transition:transform 0.2s, box-shadow 0.2s;
+    box-shadow:0 2px 8px rgba(0,0,0,0.15);
+  }
+  .zone-card:hover { transform:translateY(-3px); box-shadow:0 8px 24px rgba(0,0,0,0.2); }
+  .zone-card.zA { background: linear-gradient(135deg,#e74c3c,#c0392b); }
+  .zone-card.zB { background: linear-gradient(135deg,#3498db,#2980b9); }
+  .zone-card.zC { background: linear-gradient(135deg,#f39c12,#d68910); }
+  .zone-card.zD { background: linear-gradient(135deg,#95a5a6,#7f8c8d); }
+  .zone-card .letter { font-size:36px; font-weight:800; opacity:0.2; position:absolute; right:12px; top:6px; font-family:'DM Mono',monospace; }
+  .zone-name { font-size:12px; font-weight:700; letter-spacing:0.5px; opacity:0.9; }
+  .zone-counties { font-size:24px; font-weight:800; margin:4px 0 0; }
+  .zone-label-sm { font-size:10px; opacity:0.75; }
+  .zone-energy { font-size:13px; font-weight:600; margin-top:8px; }
+  .zone-projects { font-size:11px; opacity:0.8; margin-top:2px; }
+
+  /* TABLE */
+  .table-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  thead tr { background:var(--navy); }
+  thead th { padding:10px 12px; text-align:left; color:rgba(255,255,255,0.85); font-size:11px; font-weight:600; letter-spacing:0.5px; }
+  tbody tr { border-bottom:1px solid var(--light); transition:background 0.15s; cursor:default; }
+  tbody tr:hover { background:var(--off); }
+  tbody td { padding:9px 12px; }
+  .zone-pill {
+    display:inline-block; padding:2px 10px; border-radius:20px;
+    font-size:10px; font-weight:700; color:#fff;
+  }
+  .rank-num { font-family:'DM Mono',monospace; color:var(--muted); font-size:11px; }
+  .bar-mini { height:6px; border-radius:3px; background:var(--teal); }
+
+  /* TOOLTIP */
+  .custom-tooltip {
+    position:fixed; pointer-events:none; z-index:999;
+    background:var(--navy); color:#fff; border-radius:10px;
+    padding:10px 14px; font-size:12px; line-height:1.7;
+    box-shadow:0 8px 30px rgba(0,0,0,0.3); display:none; min-width:180px;
+  }
+  .custom-tooltip strong { display:block; font-size:13px; margin-bottom:4px; color:var(--teal2); }
+
+  /* SCROLL */
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--light); border-radius:3px; }
+
+  /* RESPONSIVE */
+  @media(max-width:1400px) {
+    .kpi-row { grid-template-columns:repeat(3,1fr); }
+    .row-3 { grid-template-columns:1fr 1fr; }
+  }
+  @media(max-width:1100px) {
+    .row-2,.row-2b,.row-3 { grid-template-columns:1fr; }
+    .zone-cards { grid-template-columns:repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-tag">☀ Spinnaker Analytics</div>
+    <h2>Solar Energy<br>Dashboard</h2>
+    <div class="org">NY State · 2023</div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section">Overview</div>
+    <div class="nav-item active"><span class="dot"></span> KPI Summary</div>
+    <div class="nav-item"><span class="dot"></span> Production Zones</div>
+    <div class="nav-item"><span class="dot"></span> County Analysis</div>
+    <div class="nav-section">Analytics</div>
+    <div class="nav-item"><span class="dot"></span> Growth Trend</div>
+    <div class="nav-item"><span class="dot"></span> Utility Breakdown</div>
+    <div class="nav-item"><span class="dot"></span> Top Developers</div>
+    <div class="nav-section">Clustering</div>
+    <div class="nav-item"><span class="dot"></span> K-Means Results</div>
+    <div class="nav-item"><span class="dot"></span> Zone Comparison</div>
+  </div>
+  <div class="sidebar-bottom">
+    <div class="author-tag">
+      <strong>Shijan Shiby</strong>
+      Data Analyst Intern<br>
+      Spinnaker Analytics
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-title">Clustering Solar Energy <span>Production Zones</span></div>
+    <div class="topbar-right">
+      <div class="badge-date">Data Through: Dec 2023</div>
+      <div class="badge-date">📍 New York State</div>
+    </div>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <span class="filter-label">Filter Zone:</span>
+    <button class="filter-btn active" onclick="filterZone('all',this)">All Zones</button>
+    <button class="filter-btn zA" onclick="filterZone('A',this)">🔴 Zone A — Premium</button>
+    <button class="filter-btn zB" onclick="filterZone('B',this)">🔵 Zone B — High Volume</button>
+    <button class="filter-btn zC" onclick="filterZone('C',this)">🟡 Zone C — Moderate</button>
+    <button class="filter-btn zD" onclick="filterZone('D',this)">⚫ Zone D — Emerging</button>
+  </div>
+
+  <div class="content">
+
+    <!-- KPI ROW -->
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-icon">⚡</div>
+        <div class="kpi-val">6,274.8</div>
+        <div class="kpi-label">Total Energy (GWh)</div>
+        <div class="kpi-sub">Annual Production</div>
+      </div>
+      <div class="kpi-card gold">
+        <div class="kpi-icon">📋</div>
+        <div class="kpi-val" id="kpi-projects">218,115</div>
+        <div class="kpi-label">Solar Projects</div>
+        <div class="kpi-sub">Active Installations</div>
+      </div>
+      <div class="kpi-card red">
+        <div class="kpi-icon">🗺️</div>
+        <div class="kpi-val">62</div>
+        <div class="kpi-label">NY Counties</div>
+        <div class="kpi-sub">4 Production Zones</div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-icon">🏭</div>
+        <div class="kpi-val">5.35 GW</div>
+        <div class="kpi-label">Total Capacity</div>
+        <div class="kpi-sub">Installed kWdc</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon">📐</div>
+        <div class="kpi-val">24.5 kW</div>
+        <div class="kpi-label">Avg System Size</div>
+        <div class="kpi-sub">Per Installation</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon">🏢</div>
+        <div class="kpi-val">7</div>
+        <div class="kpi-label">Utilities</div>
+        <div class="kpi-sub">Across NY State</div>
+      </div>
+    </div>
+
+    <!-- ZONE SUMMARY CARDS -->
+    <div class="zone-cards">
+      <div class="zone-card zA" onclick="filterZone('A', document.querySelector('.filter-btn.zA'))">
+        <div class="letter">A</div>
+        <div class="zone-name">ZONE A</div>
+        <div class="zone-counties">39</div>
+        <div class="zone-label-sm">counties</div>
+        <div class="zone-energy">⚡ 3,802 GWh</div>
+        <div class="zone-projects">158,350 projects · 42.5 kW avg</div>
+      </div>
+      <div class="zone-card zB" onclick="filterZone('B', document.querySelector('.filter-btn.zB'))">
+        <div class="letter">B</div>
+        <div class="zone-name">ZONE B</div>
+        <div class="zone-counties">20</div>
+        <div class="zone-label-sm">counties</div>
+        <div class="zone-energy">⚡ 1,457 GWh</div>
+        <div class="zone-projects">7,790 projects · 166.8 kW avg</div>
+      </div>
+      <div class="zone-card zC" onclick="filterZone('C', document.querySelector('.filter-btn.zC'))">
+        <div class="letter">C</div>
+        <div class="zone-name">ZONE C</div>
+        <div class="zone-counties">1</div>
+        <div class="zone-label-sm">county (Suffolk)</div>
+        <div class="zone-energy">⚡ 877 GWh</div>
+        <div class="zone-projects">51,712 projects · 14.5 kW avg</div>
+      </div>
+      <div class="zone-card zD" onclick="filterZone('D', document.querySelector('.filter-btn.zD'))">
+        <div class="letter">D</div>
+        <div class="zone-name">ZONE D</div>
+        <div class="zone-counties">2</div>
+        <div class="zone-label-sm">counties</div>
+        <div class="zone-energy">⚡ 139 GWh</div>
+        <div class="zone-projects">260 projects · 468.8 kW avg</div>
+      </div>
+    </div>
+
+    <!-- ROW 1: Trend + Donut -->
+    <div class="chart-grid row-2 mb">
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Solar Project Growth Trend (2010–2023)</div>
+            <div class="chart-sub">Annual interconnections & energy production</div>
+          </div>
+          <div class="chart-badge">Trend</div>
+        </div>
+        <div class="chart-body" style="height:240px">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Energy by Production Zone</div>
+            <div class="chart-sub">Share of total GWh per cluster</div>
+          </div>
+          <div class="chart-badge">Cluster</div>
+        </div>
+        <div class="chart-body" style="height:240px">
+          <canvas id="donutChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 2: Top Counties Bar -->
+    <div class="chart-grid row-1 mb" style="margin-bottom:18px">
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Top 20 Counties by Total Solar Energy Production</div>
+            <div class="chart-sub">Color-coded by production zone · GWh</div>
+          </div>
+          <div class="chart-badge" id="countyFilterLabel">All Zones</div>
+        </div>
+        <div class="chart-body" style="height:280px">
+          <canvas id="countyBar"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 3: Utility + Developers -->
+    <div class="chart-grid row-2b mb" style="margin-bottom:18px">
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Utility Breakdown</div>
+            <div class="chart-sub">Projects & energy per utility provider</div>
+          </div>
+        </div>
+        <div class="chart-body" style="height:220px">
+          <canvas id="utilityChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Top 10 Solar Developers</div>
+            <div class="chart-sub">By number of installed projects</div>
+          </div>
+        </div>
+        <div class="chart-body" style="height:220px">
+          <canvas id="devChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- COUNTY TABLE -->
+    <div class="chart-card" style="margin-bottom:18px">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">County-Level Data Table</div>
+          <div class="chart-sub" id="tableSubtitle">Showing all 62 counties — click a zone to filter</div>
+        </div>
+        <div class="chart-badge" id="tableCount">62 counties</div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>County</th>
+              <th>Zone</th>
+              <th>Total Energy (GWh)</th>
+              <th>Projects</th>
+              <th>Avg Size (kW)</th>
+              <th>Capacity (kW)</th>
+              <th>Developers</th>
+              <th>Production Bar</th>
+            </tr>
+          </thead>
+          <tbody id="countyTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="custom-tooltip" id="tooltip"></div>
+
+<style>.mb{margin-bottom:18px}</style>
+
+<script>
+// ── DATA ────────────────────────────────────────────────────────────────────
+const DATA = {"kpis": {"total_projects": 218115, "total_energy_gwh": 6274.8, "total_counties": 62, "total_utilities": 7, "avg_system_size": 24.5, "total_capacity_gw": 5.35}, "county_data": [{"County": "Albany", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 4324, "total_energy_gwh": 115.1, "avg_energy_kwh": 26617.79, "avg_system_size_kw": 22.68, "total_capacity_kw": 98050.16, "unique_developers": 252}, {"County": "Allegany", "cluster": 0, "zone_label": "Zone D \u2014 Emerging", "zone_color": "#95a5a6", "zone_short": "D", "total_projects": 160, "total_energy_gwh": 76.32, "avg_energy_kwh": 477018.46, "avg_system_size_kw": 406.37, "total_capacity_kw": 65019.95, "unique_developers": 69}, {"County": "Bronx", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 5932, "total_energy_gwh": 83.69, "avg_energy_kwh": 14108.81, "avg_system_size_kw": 12.02, "total_capacity_kw": 71300.93, "unique_developers": 130}, {"County": "Broome", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 564, "total_energy_gwh": 39.22, "avg_energy_kwh": 69535.48, "avg_system_size_kw": 59.24, "total_capacity_kw": 33410.21, "unique_developers": 65}, {"County": "Cattaraugus", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 322, "total_energy_gwh": 68.47, "avg_energy_kwh": 212633.0, "avg_system_size_kw": 181.14, "total_capacity_kw": 58327.96, "unique_developers": 70}, {"County": "Cayuga", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 404, "total_energy_gwh": 51.48, "avg_energy_kwh": 127421.5, "avg_system_size_kw": 108.55, "total_capacity_kw": 43854.71, "unique_developers": 85}, {"County": "Chautauqua", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 461, "total_energy_gwh": 60.26, "avg_energy_kwh": 130714.43, "avg_system_size_kw": 111.36, "total_capacity_kw": 51335.35, "unique_developers": 83}, {"County": "Chemung", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 254, "total_energy_gwh": 58.54, "avg_energy_kwh": 230491.67, "avg_system_size_kw": 196.36, "total_capacity_kw": 49874.78, "unique_developers": 59}, {"County": "Chenango", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 204, "total_energy_gwh": 45.62, "avg_energy_kwh": 223616.32, "avg_system_size_kw": 190.5, "total_capacity_kw": 38862.06, "unique_developers": 41}, {"County": "Clinton", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 309, "total_energy_gwh": 38.94, "avg_energy_kwh": 126018.06, "avg_system_size_kw": 107.36, "total_capacity_kw": 33172.84, "unique_developers": 50}, {"County": "Columbia", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 1476, "total_energy_gwh": 91.9, "avg_energy_kwh": 62263.24, "avg_system_size_kw": 53.04, "total_capacity_kw": 78290.53, "unique_developers": 190}, {"County": "Cortland", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 299, "total_energy_gwh": 86.68, "avg_energy_kwh": 289903.84, "avg_system_size_kw": 246.97, "total_capacity_kw": 73844.25, "unique_developers": 91}, {"County": "Delaware", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 256, "total_energy_gwh": 16.0, "avg_energy_kwh": 62495.8, "avg_system_size_kw": 53.24, "total_capacity_kw": 13629.6, "unique_developers": 59}, {"County": "Dutchess", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 6099, "total_energy_gwh": 148.4, "avg_energy_kwh": 24332.02, "avg_system_size_kw": 20.73, "total_capacity_kw": 126422.75, "unique_developers": 285}, {"County": "Erie", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 3674, "total_energy_gwh": 193.53, "avg_energy_kwh": 52674.67, "avg_system_size_kw": 44.87, "total_capacity_kw": 164867.65, "unique_developers": 209}, {"County": "Essex", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 411, "total_energy_gwh": 5.25, "avg_energy_kwh": 12774.47, "avg_system_size_kw": 10.88, "total_capacity_kw": 4472.83, "unique_developers": 88}, {"County": "Franklin", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 220, "total_energy_gwh": 32.08, "avg_energy_kwh": 145822.8, "avg_system_size_kw": 124.23, "total_capacity_kw": 27329.97, "unique_developers": 43}, {"County": "Fulton", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 575, "total_energy_gwh": 94.81, "avg_energy_kwh": 164882.25, "avg_system_size_kw": 140.46, "total_capacity_kw": 80766.74, "unique_developers": 107}, {"County": "Genesee", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 305, "total_energy_gwh": 46.85, "avg_energy_kwh": 153597.75, "avg_system_size_kw": 130.85, "total_capacity_kw": 39909.45, "unique_developers": 82}, {"County": "Greene", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 1070, "total_energy_gwh": 70.7, "avg_energy_kwh": 66079.04, "avg_system_size_kw": 56.29, "total_capacity_kw": 60233.64, "unique_developers": 127}, {"County": "Hamilton", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 44, "total_energy_gwh": 0.46, "avg_energy_kwh": 10481.73, "avg_system_size_kw": 8.93, "total_capacity_kw": 392.89, "unique_developers": 25}, {"County": "Herkimer", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 230, "total_energy_gwh": 18.18, "avg_energy_kwh": 79058.46, "avg_system_size_kw": 67.35, "total_capacity_kw": 15490.49, "unique_developers": 76}, {"County": "Jefferson", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 495, "total_energy_gwh": 150.12, "avg_energy_kwh": 303277.2, "avg_system_size_kw": 258.36, "total_capacity_kw": 127890.03, "unique_developers": 99}, {"County": "Kings", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 11946, "total_energy_gwh": 120.84, "avg_energy_kwh": 10115.4, "avg_system_size_kw": 8.62, "total_capacity_kw": 102946.51, "unique_developers": 167}, {"County": "Lewis", "cluster": 0, "zone_label": "Zone D \u2014 Emerging", "zone_color": "#95a5a6", "zone_short": "D", "total_projects": 100, "total_energy_gwh": 62.36, "avg_energy_kwh": 623646.33, "avg_system_size_kw": 531.29, "total_capacity_kw": 53128.74, "unique_developers": 36}, {"County": "Livingston", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 409, "total_energy_gwh": 83.44, "avg_energy_kwh": 204001.12, "avg_system_size_kw": 173.79, "total_capacity_kw": 71080.02, "unique_developers": 120}, {"County": "Madison", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 453, "total_energy_gwh": 67.62, "avg_energy_kwh": 149270.76, "avg_system_size_kw": 127.16, "total_capacity_kw": 57605.56, "unique_developers": 127}, {"County": "Monroe", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 2182, "total_energy_gwh": 235.73, "avg_energy_kwh": 108032.7, "avg_system_size_kw": 92.03, "total_capacity_kw": 200817.88, "unique_developers": 211}, {"County": "Montgomery", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 699, "total_energy_gwh": 69.51, "avg_energy_kwh": 99435.85, "avg_system_size_kw": 84.71, "total_capacity_kw": 59212.23, "unique_developers": 112}, {"County": "Nassau", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 32233, "total_energy_gwh": 354.61, "avg_energy_kwh": 11001.36, "avg_system_size_kw": 9.37, "total_capacity_kw": 302094.24, "unique_developers": 374}, {"County": "New York", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 434, "total_energy_gwh": 15.2, "avg_energy_kwh": 35028.86, "avg_system_size_kw": 29.84, "total_capacity_kw": 12951.21, "unique_developers": 60}, {"County": "Niagara", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 856, "total_energy_gwh": 67.25, "avg_energy_kwh": 78563.39, "avg_system_size_kw": 66.93, "total_capacity_kw": 57290.96, "unique_developers": 114}, {"County": "Oneida", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 896, "total_energy_gwh": 124.92, "avg_energy_kwh": 139415.53, "avg_system_size_kw": 118.77, "total_capacity_kw": 106416.79, "unique_developers": 175}, {"County": "Onondaga", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 1575, "total_energy_gwh": 147.88, "avg_energy_kwh": 93894.04, "avg_system_size_kw": 79.99, "total_capacity_kw": 125982.67, "unique_developers": 221}, {"County": "Ontario", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 773, "total_energy_gwh": 65.81, "avg_energy_kwh": 85132.54, "avg_system_size_kw": 72.52, "total_capacity_kw": 56061.72, "unique_developers": 114}, {"County": "Orange", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 9359, "total_energy_gwh": 339.33, "avg_energy_kwh": 36257.17, "avg_system_size_kw": 30.89, "total_capacity_kw": 289077.27, "unique_developers": 209}, {"County": "Orleans", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 246, "total_energy_gwh": 24.17, "avg_energy_kwh": 98236.3, "avg_system_size_kw": 83.69, "total_capacity_kw": 20587.29, "unique_developers": 71}, {"County": "Oswego", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 560, "total_energy_gwh": 75.49, "avg_energy_kwh": 134809.05, "avg_system_size_kw": 114.84, "total_capacity_kw": 64312.89, "unique_developers": 117}, {"County": "Otsego", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 411, "total_energy_gwh": 9.7, "avg_energy_kwh": 23594.41, "avg_system_size_kw": 20.1, "total_capacity_kw": 8261.27, "unique_developers": 82}, {"County": "Putnam", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 1041, "total_energy_gwh": 21.06, "avg_energy_kwh": 20228.43, "avg_system_size_kw": 17.23, "total_capacity_kw": 17939.21, "unique_developers": 131}, {"County": "Queens", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 23010, "total_energy_gwh": 222.05, "avg_energy_kwh": 9650.19, "avg_system_size_kw": 8.22, "total_capacity_kw": 189175.92, "unique_developers": 268}, {"County": "Rensselaer", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 2705, "total_energy_gwh": 115.72, "avg_energy_kwh": 42780.84, "avg_system_size_kw": 36.45, "total_capacity_kw": 98584.11, "unique_developers": 227}, {"County": "Richmond", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 12766, "total_energy_gwh": 163.71, "avg_energy_kwh": 12823.67, "avg_system_size_kw": 10.92, "total_capacity_kw": 139467.9, "unique_developers": 138}, {"County": "Rockland", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 5267, "total_energy_gwh": 71.5, "avg_energy_kwh": 13574.28, "avg_system_size_kw": 11.56, "total_capacity_kw": 60907.56, "unique_developers": 36}, {"County": "Saratoga", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 2939, "total_energy_gwh": 132.68, "avg_energy_kwh": 45143.04, "avg_system_size_kw": 38.46, "total_capacity_kw": 113026.72, "unique_developers": 207}, {"County": "Schenectady", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 2670, "total_energy_gwh": 114.7, "avg_energy_kwh": 42957.44, "avg_system_size_kw": 36.6, "total_capacity_kw": 97710.19, "unique_developers": 154}, {"County": "Schoharie", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 521, "total_energy_gwh": 9.67, "avg_energy_kwh": 18569.15, "avg_system_size_kw": 15.82, "total_capacity_kw": 8241.72, "unique_developers": 114}, {"County": "Schuyler", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 133, "total_energy_gwh": 11.51, "avg_energy_kwh": 86526.77, "avg_system_size_kw": 73.71, "total_capacity_kw": 9803.82, "unique_developers": 27}, {"County": "Seneca", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 169, "total_energy_gwh": 18.84, "avg_energy_kwh": 111496.87, "avg_system_size_kw": 94.99, "total_capacity_kw": 16052.47, "unique_developers": 37}, {"County": "St Lawrence", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 677, "total_energy_gwh": 127.23, "avg_energy_kwh": 187926.07, "avg_system_size_kw": 160.1, "total_capacity_kw": 108384.46, "unique_developers": 90}, {"County": "Steuben", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 235, "total_energy_gwh": 57.32, "avg_energy_kwh": 243929.23, "avg_system_size_kw": 207.8, "total_capacity_kw": 48834.09, "unique_developers": 66}, {"County": "Suffolk", "cluster": 1, "zone_label": "Zone C \u2014 Moderate", "zone_color": "#f39c12", "zone_short": "C", "total_projects": 51712, "total_energy_gwh": 877.14, "avg_energy_kwh": 16961.03, "avg_system_size_kw": 14.45, "total_capacity_kw": 747241.77, "unique_developers": 426}, {"County": "Sullivan", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 948, "total_energy_gwh": 64.56, "avg_energy_kwh": 68105.01, "avg_system_size_kw": 58.02, "total_capacity_kw": 55002.09, "unique_developers": 106}, {"County": "Tioga", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 327, "total_energy_gwh": 104.93, "avg_energy_kwh": 320873.32, "avg_system_size_kw": 273.35, "total_capacity_kw": 89386.74, "unique_developers": 48}, {"County": "Tompkins", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 1673, "total_energy_gwh": 112.23, "avg_energy_kwh": 67084.63, "avg_system_size_kw": 57.15, "total_capacity_kw": 95612.13, "unique_developers": 76}, {"County": "Ulster", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 5311, "total_energy_gwh": 153.12, "avg_energy_kwh": 28829.86, "avg_system_size_kw": 24.56, "total_capacity_kw": 130439.54, "unique_developers": 248}, {"County": "Warren", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 729, "total_energy_gwh": 19.37, "avg_energy_kwh": 26572.05, "avg_system_size_kw": 22.64, "total_capacity_kw": 16502.24, "unique_developers": 104}, {"County": "Washington", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 804, "total_energy_gwh": 47.85, "avg_energy_kwh": 59518.73, "avg_system_size_kw": 50.7, "total_capacity_kw": 40766.18, "unique_developers": 131}, {"County": "Wayne", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 525, "total_energy_gwh": 60.31, "avg_energy_kwh": 114879.13, "avg_system_size_kw": 97.87, "total_capacity_kw": 51379.88, "unique_developers": 66}, {"County": "Westchester", "cluster": 3, "zone_label": "Zone A \u2014 Premium", "zone_color": "#e74c3c", "zone_short": "A", "total_projects": 12345, "total_energy_gwh": 230.58, "avg_energy_kwh": 18678.16, "avg_system_size_kw": 15.91, "total_capacity_kw": 196435.97, "unique_developers": 255}, {"County": "Wyoming", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 191, "total_energy_gwh": 33.35, "avg_energy_kwh": 174621.86, "avg_system_size_kw": 148.76, "total_capacity_kw": 28413.39, "unique_developers": 63}, {"County": "Yates", "cluster": 2, "zone_label": "Zone B \u2014 High Volume", "zone_color": "#3498db", "zone_short": "B", "total_projects": 194, "total_energy_gwh": 48.92, "avg_energy_kwh": 252147.04, "avg_system_size_kw": 214.81, "total_capacity_kw": 41672.24, "unique_developers": 45}], "utility_data": [{"Utility": "Central Hudson", "projects": 15106, "total_energy": 450707127, "total_energy_gwh": 450.7}, {"Utility": "Con Ed", "projects": 64709, "total_energy": 816434954, "total_energy_gwh": 816.4}, {"Utility": "NYSEG", "projects": 11773, "total_energy": 970550131, "total_energy_gwh": 970.6}, {"Utility": "National Grid", "projects": 26400, "total_energy": 2140480498, "total_energy_gwh": 2140.5}, {"Utility": "O&R", "projects": 12152, "total_energy": 307829295, "total_energy_gwh": 307.8}, {"Utility": "PSEGLI", "projects": 85107, "total_energy": 1243127779, "total_energy_gwh": 1243.1}, {"Utility": "RGE", "projects": 2865, "total_energy": 345663301, "total_energy_gwh": 345.7}], "dev_data": [{"Developer": "Vivint Solar", "projects": 12822}, {"Developer": "MOMENTUM SOLAR", "projects": 12689}, {"Developer": "Sunrun Inc", "projects": 12485}, {"Developer": "Solar City", "projects": 11621}, {"Developer": "Other", "projects": 6347}, {"Developer": "Trinity Solar", "projects": 5391}, {"Developer": "SolarCity", "projects": 4906}, {"Developer": "Venture Solar", "projects": 4884}, {"Developer": "Long Island Power Solutions", "projects": 4476}, {"Developer": "Sunrun, Inc.", "projects": 4263}], "year_trend": [{"year": 2010, "projects": 2464, "energy": 31452180, "energy_gwh": 31.45}, {"year": 2011, "projects": 2421, "energy": 92932768, "energy_gwh": 92.93}, {"year": 2012, "projects": 3194, "energy": 68025089, "energy_gwh": 68.03}, {"year": 2013, "projects": 4881, "energy": 98448913, "energy_gwh": 98.45}, {"year": 2014, "projects": 13006, "energy": 198720983, "energy_gwh": 198.72}, {"year": 2015, "projects": 24267, "energy": 332086047, "energy_gwh": 332.09}, {"year": 2016, "projects": 26774, "energy": 380689693, "energy_gwh": 380.69}, {"year": 2017, "projects": 17106, "energy": 387527211, "energy_gwh": 387.53}, {"year": 2018, "projects": 16986, "energy": 507141361, "energy_gwh": 507.14}, {"year": 2019, "projects": 16567, "energy": 560544954, "energy_gwh": 560.54}, {"year": 2020, "projects": 14636, "energy": 644532457, "energy_gwh": 644.53}, {"year": 2021, "projects": 18513, "energy": 895630729, "energy_gwh": 895.63}, {"year": 2022, "projects": 23378, "energy": 998936840, "energy_gwh": 998.94}, {"year": 2023, "projects": 29452, "energy": 1038776259, "energy_gwh": 1038.78}], "cluster_summary": [{"cluster": 0, "zone_label": "Zone D \u2014 Emerging", "counties": 2, "total_energy_gwh": 138.69, "total_projects": 260, "avg_system_size": 468.83}, {"cluster": 1, "zone_label": "Zone C \u2014 Moderate", "counties": 1, "total_energy_gwh": 877.14, "total_projects": 51712, "avg_system_size": 14.45}, {"cluster": 2, "zone_label": "Zone B \u2014 High Volume", "counties": 20, "total_energy_gwh": 1457.06, "total_projects": 7790, "avg_system_size": 166.78}, {"cluster": 3, "zone_label": "Zone A \u2014 Premium", "counties": 39, "total_energy_gwh": 3801.91, "total_projects": 158350, "avg_system_size": 42.53}]};
+
+let activeFilter = 'all';
+const charts = {};
+
+// ── CHART DEFAULTS ───────────────────────────────────────────────────────────
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.plugins.legend.labels.padding = 16;
+Chart.defaults.plugins.legend.labels.boxWidth = 12;
+Chart.defaults.plugins.legend.labels.font = { size:11 };
+
+function getZoneColor(z) {
+  const m = { A:'#e74c3c', B:'#3498db', C:'#f39c12', D:'#95a5a6' };
+  return m[z] || '#0D9488';
+}
+
+// ── TREND CHART ─────────────────────────────────────────────────────────────
+function buildTrend() {
+  const yt = DATA.year_trend;
+  const ctx = document.getElementById('trendChart');
+  charts.trend = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels: yt.map(d=>d.year),
+      datasets:[
+        { label:'Projects', data:yt.map(d=>d.projects), backgroundColor:'rgba(13,148,136,0.25)', borderColor:'#0D9488', borderWidth:1.5, yAxisID:'y1', type:'bar', borderRadius:3 },
+        { label:'Energy (GWh)', data:yt.map(d=>d.energy_gwh), borderColor:'#F59E0B', backgroundColor:'rgba(245,158,11,0.1)', borderWidth:2.5, type:'line', yAxisID:'y2', tension:0.4, pointRadius:3, pointBackgroundColor:'#F59E0B', fill:true }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{ legend:{position:'top'}, tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+ctx.parsed.y.toLocaleString()}} },
+      scales:{
+        x:{ grid:{display:false}, ticks:{font:{size:10}} },
+        y1:{ position:'left', grid:{color:'#f0f4f8'}, ticks:{font:{size:10}}, title:{display:true,text:'Projects',font:{size:10}} },
+        y2:{ position:'right', grid:{drawOnChartArea:false}, ticks:{font:{size:10}}, title:{display:true,text:'GWh',font:{size:10}} }
+      }
+    }
+  });
+}
+
+// ── DONUT ────────────────────────────────────────────────────────────────────
+function buildDonut() {
+  const cs = DATA.cluster_summary;
+  const order = ['Zone A \u2014 Premium','Zone B \u2014 High Volume','Zone C \u2014 Moderate','Zone D \u2014 Emerging'];
+  const colors = ['#e74c3c','#3498db','#f39c12','#95a5a6'];
+  const vals = order.map(z => { const r=cs.find(c=>c.zone_label===z); return r?r.total_energy_gwh:0; });
+  charts.donut = new Chart(document.getElementById('donutChart'),{
+    type:'doughnut',
+    data:{ labels:['Zone A','Zone B','Zone C','Zone D'], datasets:[{ data:vals, backgroundColor:colors, borderWidth:2, borderColor:'#fff', hoverOffset:6 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'62%',
+      plugins:{
+        legend:{position:'bottom', labels:{padding:12}},
+        tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw.toFixed(1)} GWh (${(ctx.raw/6274.8*100).toFixed(1)}%)`}}
+      }
+    }
+  });
+}
+
+// ── COUNTY BAR ───────────────────────────────────────────────────────────────
+function buildCountyBar(filter='all') {
+  let data = [...DATA.county_data].sort((a,b)=>b.total_energy_gwh-a.total_energy_gwh);
+  if(filter!=='all') data = data.filter(d=>d.zone_short===filter);
+  data = data.slice(0,20);
+  if(charts.countyBar) charts.countyBar.destroy();
+  charts.countyBar = new Chart(document.getElementById('countyBar'),{
+    type:'bar',
+    data:{
+      labels: data.map(d=>d.County),
+      datasets:[{ label:'Total Energy (GWh)', data:data.map(d=>d.total_energy_gwh), backgroundColor:data.map(d=>d.zone_color+'cc'), borderColor:data.map(d=>d.zone_color), borderWidth:1.5, borderRadius:4 }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, indexAxis:'x',
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{
+        label:ctx=>{const r=data[ctx.dataIndex]; return [`Energy: ${r.total_energy_gwh} GWh`,`Zone: ${r.zone_label}`,`Projects: ${r.total_projects.toLocaleString()}`];}
+      }}},
+      scales:{
+        x:{ grid:{display:false}, ticks:{font:{size:10},maxRotation:45} },
+        y:{ grid:{color:'#f0f4f8'}, ticks:{font:{size:10}}, title:{display:true,text:'GWh',font:{size:10}} }
+      }
+    }
+  });
+}
+
+// ── UTILITY ──────────────────────────────────────────────────────────────────
+function buildUtility() {
+  const ud = DATA.utility_data;
+  const tealPalette = ['#0D9488','#14b8a6','#2dd4bf','#5eead4','#0f766e','#0d9488','#099268'];
+  charts.utility = new Chart(document.getElementById('utilityChart'),{
+    type:'bar',
+    data:{
+      labels: ud.map(d=>d.Utility),
+      datasets:[
+        { label:'Projects', data:ud.map(d=>d.projects), backgroundColor:tealPalette, borderRadius:4, yAxisID:'y1' },
+        { label:'Energy (GWh)', data:ud.map(d=>d.total_energy_gwh), type:'line', borderColor:'#F59E0B', backgroundColor:'transparent', borderWidth:2, pointRadius:4, pointBackgroundColor:'#F59E0B', yAxisID:'y2' }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{ legend:{position:'top'} },
+      scales:{
+        x:{ grid:{display:false}, ticks:{font:{size:10}} },
+        y1:{ position:'left', grid:{color:'#f0f4f8'}, ticks:{font:{size:10}} },
+        y2:{ position:'right', grid:{drawOnChartArea:false}, ticks:{font:{size:10}} }
+      }
+    }
+  });
+}
+
+// ── DEVELOPERS ───────────────────────────────────────────────────────────────
+function buildDevs() {
+  const dd = DATA.dev_data;
+  charts.devs = new Chart(document.getElementById('devChart'),{
+    type:'bar',
+    data:{
+      labels: dd.map(d=>d.Developer.length>18?d.Developer.slice(0,17)+'…':d.Developer),
+      datasets:[{ label:'Projects', data:dd.map(d=>d.projects), backgroundColor:'rgba(52,152,219,0.8)', borderColor:'#3498db', borderWidth:1, borderRadius:4 }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ grid:{color:'#f0f4f8'}, ticks:{font:{size:10}} },
+        y:{ grid:{display:false}, ticks:{font:{size:10}} }
+      }
+    }
+  });
+}
+
+// ── COUNTY TABLE ─────────────────────────────────────────────────────────────
+function buildTable(filter='all') {
+  let data = [...DATA.county_data].sort((a,b)=>b.total_energy_gwh-a.total_energy_gwh);
+  if(filter!=='all') data = data.filter(d=>d.zone_short===filter);
+  const maxE = Math.max(...data.map(d=>d.total_energy_gwh));
+  const tbody = document.getElementById('countyTable');
+  document.getElementById('tableCount').textContent = data.length+' counties';
+  document.getElementById('tableSubtitle').textContent = filter==='all'?'Showing all 62 counties — click a zone to filter':`Filtered: Zone ${filter} — ${data.length} counties`;
+  tbody.innerHTML = data.map((r,i)=>`
+    <tr>
+      <td class="rank-num">${i+1}</td>
+      <td style="font-weight:600;color:#1e293b">${r.County}</td>
+      <td><span class="zone-pill" style="background:${r.zone_color}">Zone ${r.zone_short}</span></td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${r.total_energy_gwh.toFixed(1)}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${r.total_projects.toLocaleString()}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${r.avg_system_size_kw.toFixed(1)}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${r.total_capacity_kw.toLocaleString(undefined,{maximumFractionDigits:0})}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${r.unique_developers}</td>
+      <td style="width:120px"><div class="bar-mini" style="width:${Math.max(4,(r.total_energy_gwh/maxE*100))}%;background:${r.zone_color}"></div></td>
+    </tr>`).join('');
+}
+
+// ── FILTER FUNCTION ──────────────────────────────────────────────────────────
+function filterZone(zone, btn) {
+  activeFilter = zone;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  document.getElementById('countyFilterLabel').textContent = zone==='all'?'All Zones':`Zone ${zone}`;
+  buildCountyBar(zone);
+  buildTable(zone);
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded',()=>{
+  buildTrend();
+  buildDonut();
+  buildCountyBar('all');
+  buildUtility();
+  buildDevs();
+  buildTable('all');
+  document.querySelectorAll('.nav-item').forEach((item,i)=>{
+    item.addEventListener('click',()=>{
+      document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+      item.classList.add('active');
+    });
+  });
+});
+</script>
+</body>
+</html>
